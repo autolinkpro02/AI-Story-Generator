@@ -42,17 +42,38 @@ def run_story_pipeline(
     if progress_callback:
         progress_callback("Generating scene illustrations...", 30, {"script": script_data})
 
-    generate_scene_images(project, script_data, progress_callback=progress_callback)
+    try:
+        generate_scene_images(project, script_data, progress_callback=progress_callback)
+    except Exception as e:
+        print(f"ERROR: Scene image generation failed: {e}")
+        raise
 
     if progress_callback:
         progress_callback("Generating voice narration...", 65)
 
-    generate_narration_audio(project, script_data)
+    try:
+        generate_narration_audio(project, script_data)
+    except Exception as e:
+        print(f"ERROR: Narration generation failed: {e}")
+        raise
 
     if progress_callback:
         progress_callback("Rendering video & synchronized captions with FFmpeg...", 85)
 
-    video_assets = build_video(project, script_data, progress_callback=progress_callback)
+    try:
+        video_assets = build_video(project, script_data, progress_callback=progress_callback)
+    except Exception as e:
+        print(f"ERROR: Video build failed: {e}")
+        raise
+    
+    if not video_assets:
+        print(f"WARNING: build_video returned empty list for project {project.root}")
+        print(f"Scene directory exists: {project.scenes_dir.exists()}")
+        if project.scenes_dir.exists():
+            scenes_found = list(project.scenes_dir.glob("scene_*.png"))
+            print(f"Scene files found: {len(scenes_found)}")
+            for scene_file in scenes_found:
+                print(f"  - {scene_file.name} ({scene_file.stat().st_size} bytes)")
 
     if progress_callback:
         progress_callback("Video generation completed!", 100)

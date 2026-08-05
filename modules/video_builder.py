@@ -162,8 +162,24 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
             ]
             subprocess.run(ffmpeg_audio_cmd, check=True, capture_output=True, text=True)
 
-    if not any((project.scenes_dir / f"scene_{scene.get('scene_number', 1):02d}.png").exists() for scene in scenes):
+    # Check for scene images
+    missing_scenes = []
+    for scene in scenes:
+        scene_num = scene.get('scene_number', 1)
+        scene_file = project.scenes_dir / f"scene_{scene_num:02d}.png"
+        if not scene_file.exists():
+            missing_scenes.append(scene_num)
+    
+    if missing_scenes:
+        print(f"ERROR: Missing scene images for scenes: {missing_scenes}")
+        print(f"Scene directory: {project.scenes_dir}")
+        print(f"Directory exists: {project.scenes_dir.exists()}")
+        if project.scenes_dir.exists():
+            print(f"Files in directory: {list(project.scenes_dir.glob('scene_*.png'))}")
         return []
+    
+    # Ensure output directory exists
+    project.output_dir.mkdir(parents=True, exist_ok=True)
     
     # Calculate total duration and target frame count
     FPS = 24
