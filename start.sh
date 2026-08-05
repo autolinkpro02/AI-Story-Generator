@@ -22,8 +22,15 @@ for _ in $(seq 1 60); do
 done
 
 if [[ -n "${OLLAMA_MODEL:-}" ]]; then
-  if [[ "${OLLAMA_PULL_MODEL:-true}" == "true" ]]; then
-    ollama pull "${OLLAMA_MODEL}"
+  if [[ "${OLLAMA_PULL_MODEL:-false}" == "true" ]]; then
+    if ollama show "${OLLAMA_MODEL}" >/dev/null 2>&1; then
+      echo "Model ${OLLAMA_MODEL} already available locally; skipping pull."
+    else
+      echo "Pulling model ${OLLAMA_MODEL} for first-time use..."
+      ollama pull "${OLLAMA_MODEL}"
+    fi
+  else
+    echo "Automatic model pull is disabled. Set OLLAMA_PULL_MODEL=true to download ${OLLAMA_MODEL} on startup."
   fi
 fi
 

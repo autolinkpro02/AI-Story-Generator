@@ -24,6 +24,7 @@ COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
 ENV OLLAMA_HOST=http://127.0.0.1:11434
+ENV OLLAMA_PULL_MODEL=false
 EXPOSE 8000 11434
 
 ENTRYPOINT ["/bin/bash", "/app/start.sh"]
