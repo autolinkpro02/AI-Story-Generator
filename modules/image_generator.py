@@ -34,6 +34,10 @@ def _create_artistic_fallback_image(prompt: str, image_path: Path) -> bool:
     try:
         from PIL import ImageDraw, ImageFont
         w, h = 576, 1024
+        
+        # Ensure parent directory exists
+        image_path.parent.mkdir(parents=True, exist_ok=True)
+        
         img = Image.new("RGB", (w, h), (15, 23, 42))
         draw = ImageDraw.Draw(img)
         
@@ -47,11 +51,22 @@ def _create_artistic_fallback_image(prompt: str, image_path: Path) -> bool:
         # Draw glowing ambient moon/sun orb
         draw.ellipse([w // 2 - 120, h // 3 - 120, w // 2 + 120, h // 3 + 120], fill=(255, 220, 150))
         
-        image_path.parent.mkdir(parents=True, exist_ok=True)
+        # Add some visual interest with stars
+        import random
+        random.seed(hash(prompt) % (2**32))
+        for _ in range(20):
+            x = random.randint(0, w)
+            y = random.randint(0, h)
+            size = random.randint(1, 3)
+            draw.ellipse([x - size, y - size, x + size, y + size], fill=(255, 255, 255))
+        
         img.save(image_path, format="PNG")
+        print(f"Created fallback image at {image_path} ({image_path.stat().st_size} bytes)")
         return True
     except Exception as exc:
         print(f"Fallback canvas creation error: {exc}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -116,7 +131,11 @@ def generate_scene_images(project: Any, script_data: dict[str, Any], progress_ca
         if not success:
             print(f"Retrying Scene {scene_number} with simplified prompt...")
             simple_prompt = f"digital art illustration, {prompt[:120]}, vertical 9:16 portrait"
-            _fetch_pollinations_ai_image(simple_prompt, image_path)
+            success = _fetch_pollinations_ai_image(simple_prompt, image_path)
+        
+        if not success:
+            print(f"External API unavailable for Scene {scene_number}; using instant fallback canvas")
+            _create_artistic_fallback_image(augmented_prompt, image_path)
 
         return scene_number, image_path if image_path.exists() else None
 
