@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Vertical Story Video Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --bg-dark: #090d16;
+        --card-bg: rgba(17, 24, 39, 0.75);
+        --card-border: rgba(255, 255, 255, 0.08);
+        --accent-primary: #3b82f6;
+        --accent-gradient: linear-gradient(135deg, #6366f1 0%, #3b82f6 50%, #06b6d4 100%);
+        --accent-glow: rgba(99, 102, 241, 0.35);
+        --text-main: #f8fafc;
+        --text-muted: #94a3b8;
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-dark);
+        background-image: 
+          radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+          radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.12) 0px, transparent 50%);
+        color: var(--text-main);
+        min-height: 100vh;
+        padding: 32px 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 36px;
+      }
+
+      header h1 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2.75rem;
+        font-weight: 800;
+        background: var(--accent-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -0.02em;
+        margin-bottom: 8px;
+      }
+
+      header p {
+        color: var(--text-muted);
+        font-size: 1.1rem;
+      }
+
+      .badges {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }
+
+      .badge {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 4px 12px;
+        border-radius: 99px;
+        font-size: 0.82rem;
+        color: #cbd5e1;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .main-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px;
+      }
+
+      @media (max-width: 900px) {
+        .main-grid { grid-template-columns: 1fr; }
+      }
+
+      .card {
+        background: var(--card-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--card-border);
+        border-radius: 20px;
+        padding: 28px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      }
+
+      .card-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #cbd5e1;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      input, textarea, select {
+        width: 100%;
+        padding: 14px 16px;
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        color: #fff;
+        font-family: inherit;
+        font-size: 0.95rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+
+      input:focus, textarea:focus, select:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px var(--accent-glow);
+      }
+
+      .row-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .preset-chips {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+      }
+
+      .chip {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .chip:hover {
+        background: rgba(99, 102, 241, 0.2);
+        border-color: var(--accent-primary);
+      }
+
+      .btn-generate {
+        width: 100%;
+        padding: 16px;
+        border: none;
+        border-radius: 12px;
+        background: var(--accent-gradient);
+        color: #fff;
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 8px 24px var(--accent-glow);
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .btn-generate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px var(--accent-glow);
+      }
+
+      .btn-generate:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* Progress Bar & Status */
+      .progress-container {
+        display: none;
+        margin-top: 20px;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.6);
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .progress-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      .progress-bar-bg {
+        height: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 99px;
+        overflow: hidden;
+      }
+
+      .progress-bar-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--accent-gradient);
+        border-radius: 99px;
+        transition: width 0.4s ease;
+      }
+
+      /* Video Preview Section */
+      .preview-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 420px;
+        border: 2px dashed rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 20px;
+        text-align: center;
+      }
+
+      .video-wrapper {
+        width: 100%;
+        max-width: 320px;
+        aspect-ratio: 9 / 16;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+        background: #000;
+      }
+
+      video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .scene-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 12px;
+        margin-top: 20px;
+        width: 100%;
+      }
+
+      .scene-card {
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        overflow: hidden;
+        font-size: 0.78rem;
+        padding: 8px;
+      }
+
+      .scene-card img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        border-radius: 6px;
+      }
+
+      .scene-card p {
+        margin-top: 6px;
+        color: #cbd5e1;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .regen-btn {
+        width: 100%;
+        margin-top: 6px;
+        padding: 4px;
+        background: rgba(255, 255, 255, 0.08);
+        border: none;
+        border-radius: 4px;
+        color: #93c5fd;
+        cursor: pointer;
+        font-size: 0.75rem;
+      }
+
+      .regen-btn:hover {
+        background: var(--accent-primary);
+        color: #fff;
+      }
+
+      .btn-download {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        padding: 16px 24px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: #ffffff;
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.05rem;
+        font-weight: 700;
+        border-radius: 14px;
+        text-decoration: none;
+        box-shadow: 0 8px 24px rgba(16, 185, 129, 0.35);
+        transition: all 0.25s ease;
+      }
+
+      .btn-download:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px rgba(16, 185, 129, 0.45);
+        background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>⚡ AI Vertical Story Generator</h1>
+        <p>Convert story ideas into 30–60 second vertical videos for Reels, TikTok & Shorts</p>
+        <div class="badges">
+          <span class="badge">🔒 100% Local & Free</span>
+          <span class="badge">🤖 Railway Ollama LLM</span>
+          <span class="badge">🎨 Free Diffusion SDXL</span>
+          <span class="badge">🗣️ Local Neural TTS</span>
+          <span class="badge">🎬 9:16 Vertical Export</span>
+        </div>
+      </header>
+
+      <div class="main-grid">
+        <!-- Story Controls Form -->
+        <div class="card">
+          <div class="card-title">✨ Create Story Video</div>
+          <form id="story-form">
+            <div class="form-group">
+              <label for="idea">Story Idea</label>
+              <textarea id="idea" name="idea" rows="3" placeholder="e.g. A shy little girl lost in an enchanted glowing forest meets a friendly firefly..." required></textarea>
+            </div>
+
+            <div class="row-2">
+              <div class="form-group">
+                <label for="story_type">Category</label>
+                <select id="story_type" name="story_type">
+                  <option value="emotional">Emotional</option>
+                  <option value="motivational">Motivational</option>
+                  <option value="mystery">Mystery</option>
+                  <option value="moral">Moral Story</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="duration">Target Duration</label>
+                <select id="duration" name="duration">
+                  <option value="30">30 Seconds</option>
+                  <option value="45" selected>45 Seconds</option>
+                  <option value="60">60 Seconds</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="visual_style">Visual Style Preset</label>
+              <input id="visual_style" name="visual_style" value="cinematic storybook watercolor illustration" required />
+              <div class="preset-chips">
+                <span class="chip" onclick="setStyle('storybook watercolor illustration')">Watercolor</span>
+                <span class="chip" onclick="setStyle('3D Pixar style digital art')">3D Animation</span>
+                <span class="chip" onclick="setStyle('dark fantasy cinematic photoreal')">Dark Fantasy</span>
+                <span class="chip" onclick="setStyle('vibrant anime studio ghibli style')">Anime</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="character_description">Character Description (Consistency Lock)</label>
+              <textarea id="character_description" name="character_description" rows="2" placeholder="e.g. A 7-year-old girl with curly red hair, yellow raincoat, freckles, big curious eyes"></textarea>
+            </div>
+
+            <button type="submit" id="submit-btn" class="btn-generate">
+              <span>🚀 Generate Vertical Video</span>
+            </button>
+          </form>
+
+          <!-- Live Progress Tracker -->
+          <div id="progress-box" class="progress-container">
+            <div class="progress-header">
+              <span id="step-label">Initializing pipeline...</span>
+              <span id="pct-label">0%</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div id="progress-bar" class="progress-bar-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video & Scene Preview Section -->
+        <div class="card">
+          <div class="card-title">🎥 Video Preview & Scenes</div>
+          
+          <div id="preview-area" class="preview-box">
+            <div id="empty-state">
+              <p style="color: var(--text-muted); font-size: 0.95rem;">
+                No video generated yet.<br/>Fill out the story prompt and click <strong>Generate Vertical Video</strong>.
+              </p>
+            </div>
+
+            <div id="video-display" style="display: none; width: 100%;">
+              <div class="video-wrapper" style="margin: 0 auto 20px;">
+                <video id="player" controls playsinline></video>
+              </div>
+              <div style="text-align: center;">
+                <a id="download-btn" href="#" download="story_video.mp4" class="btn-download">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <span>Download HD Vertical Video (1080×1920 MP4)</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div id="scenes-section" style="margin-top: 24px; display: none;">
+            <label>Generated Scene Breakdown</label>
+            <div id="scene-cards" class="scene-grid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function setStyle(val) {
+        document.getElementById('visual_style').value = val;
+      }
+
+      const form = document.getElementById('story-form');
+      const submitBtn = document.getElementById('submit-btn');
+      const progressBox = document.getElementById('progress-box');
+      const stepLabel = document.getElementById('step-label');
+      const pctLabel = document.getElementById('pct-label');
+      const progressBar = document.getElementById('progress-bar');
+      const emptyState = document.getElementById('empty-state');
+      const videoDisplay = document.getElementById('video-display');
+      const player = document.getElementById('player');
+      const downloadBtn = document.getElementById('download-btn');
+      const scenesSection = document.getElementById('scenes-section');
+      const sceneCards = document.getElementById('scene-cards');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        submitBtn.disabled = true;
+        progressBox.style.display = 'block';
+        updateProgress('Queuing request...', 5);
+
+        const formData = new FormData(form);
+        try {
+          const res = await fetch('/generate', {
+            method: 'POST',
+            body: new URLSearchParams(formData),
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+          });
+          
+          const payload = await res.json();
+          if (!res.ok) throw new Error(payload.detail || 'Request failed');
+
+          if (payload.token && payload.status_url) {
+            pollJob(payload.status_url);
+          }
+        } catch (err) {
+          updateProgress('Error: ' + err.message, 0);
+          submitBtn.disabled = false;
+        }
+      });
+
+      let currentPct = 0;
+      function updateProgress(step, pct) {
+        stepLabel.innerText = step;
+        if (pct > currentPct) {
+          currentPct = pct;
+        }
+        pctLabel.innerText = Math.round(currentPct) + '%';
+        progressBar.style.width = currentPct + '%';
+      }
+
+      let networkErrors = 0;
+      async function pollJob(statusUrl) {
+        try {
+          const res = await fetch(statusUrl);
+          if (!res.ok) throw new Error("Server response " + res.status);
+          const data = await res.json();
+          networkErrors = 0; // Reset error counter on success
+
+          let targetPct = data.progress || 10;
+          if (targetPct > currentPct) {
+            currentPct = targetPct;
+          } else if (currentPct < 90 && data.status === 'running') {
+            currentPct += 0.5; // smooth progress creep
+          }
+
+          updateProgress(data.step || 'Processing...', currentPct);
+
+          if (data.script && data.script.scenes && sceneCards.children.length === 0) {
+            renderSceneBreakdown(data.script);
+          }
+
+          if (data.status === 'finished') {
+            submitBtn.disabled = false;
+            updateProgress('Finished! Video ready below.', 100);
+            showVideo(data.video);
+            return;
+          } else if (data.status === 'error') {
+            submitBtn.disabled = false;
+            updateProgress('Failed: ' + (data.error || 'Unknown error'), 0);
+            return;
+          }
+
+          setTimeout(() => pollJob(statusUrl), 1000);
+        } catch (err) {
+          networkErrors++;
+          if (networkErrors < 12) {
+            // Silently retry polling every 1.5s
+            setTimeout(() => pollJob(statusUrl), 1500);
+          } else {
+            submitBtn.disabled = false;
+            updateProgress('Polling error: ' + err.message, 0);
+          }
+        }
+      }
+
+      function showVideo(videoUrl) {
+        if (!videoUrl) return;
+        emptyState.style.display = 'none';
+        videoDisplay.style.display = 'block';
+        player.src = videoUrl;
+        downloadBtn.href = videoUrl;
+        player.play();
+      }
+
+      function renderSceneBreakdown(script) {
+        scenesSection.style.display = 'block';
+        sceneCards.innerHTML = '';
+        (script.scenes || []).forEach(sc => {
+          const div = document.createElement('div');
+          div.className = 'scene-card';
+          div.innerHTML = `
+            <strong>Scene ${sc.scene_number}</strong>
+            <p>${sc.narration}</p>
+          `;
+          sceneCards.appendChild(div);
+        });
+      }
+    </script>
+  </body>
+</html>

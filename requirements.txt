@@ -1,0 +1,6 @@
+requests>=2.31.0
+fastapi>=0.95.2
+uvicorn[standard]>=0.22.0
+edge-tts>=6.1.9
+Pillow>=10.0.0
+python-multipart>=0.0.6
