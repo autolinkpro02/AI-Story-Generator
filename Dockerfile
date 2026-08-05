@@ -3,7 +3,7 @@ FROM ollama/ollama:latest
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 python3-pip python3-venv bash curl \
+    && apt-get install -y --no-install-recommends python3 python3-pip python3-venv bash curl ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m venv /opt/venv
