@@ -3,7 +3,7 @@ FROM ollama/ollama:latest
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 python3-pip python3-venv curl \
+    && apt-get install -y --no-install-recommends python3 python3-pip python3-venv bash curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m venv /opt/venv
@@ -26,4 +26,4 @@ RUN chmod +x /app/start.sh
 ENV OLLAMA_HOST=http://127.0.0.1:11434
 EXPOSE 8000 11434
 
-CMD ["/bin/bash", "/app/start.sh"]
+ENTRYPOINT ["/bin/bash", "/app/start.sh"]
