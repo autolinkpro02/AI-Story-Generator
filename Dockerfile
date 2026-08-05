@@ -23,6 +23,9 @@ COPY modules /app/modules
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
+# Create and ensure writable directories for generated content
+RUN mkdir -p /app/projects /app/assets && chmod -R 777 /app/projects /app/assets
+
 ENV OLLAMA_HOST=http://127.0.0.1:11434
 ENV OLLAMA_PULL_MODEL=false
 EXPOSE 8000 11434
