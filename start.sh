@@ -27,4 +27,4 @@ if [[ -n "${OLLAMA_MODEL:-}" ]]; then
   fi
 fi
 
-exec python3 -m uvicorn app:app --host 0.0.0.0 --port "${PORT:-8000}" --workers 1
+exec python3 -m uvicorn web_app:app --host 0.0.0.0 --port "${PORT:-8000}" --workers 1

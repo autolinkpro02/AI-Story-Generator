@@ -6,11 +6,18 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 python3-pip curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY ollama-railway/requirements.txt /app/requirements.txt
+COPY requirements.txt /app/requirements.txt
 RUN pip3 install --no-cache-dir -r /app/requirements.txt
 
-COPY ollama-railway/app.py /app/app.py
-COPY ollama-railway/start.sh /app/start.sh
+COPY app.py /app/app.py
+COPY web_app.py /app/web_app.py
+COPY regenerate_scene.py /app/regenerate_scene.py
+COPY index.html /app/index.html
+COPY config.py /app/config.py
+COPY script_generator.py /app/script_generator.py
+COPY project_manager.py /app/project_manager.py
+COPY modules /app/modules
+COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
 ENV OLLAMA_HOST=http://127.0.0.1:11434
