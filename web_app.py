@@ -26,8 +26,12 @@ def _register_generated_file(path: Path | None) -> str | None:
     if not path:
         return None
     resolved = Path(path).resolve()
+    if not resolved.exists():
+        print(f"WARNING: Attempting to register non-existent file: {resolved}")
+        return None
     token = quote(str(resolved), safe="")
     GENERATED_FILES[token] = resolved
+    print(f"Registered file token: {token[:50]}... -> {resolved}")
     return f"/generated/{token}"
 
 
@@ -57,34 +61,44 @@ async def index():
 
 @app.get("/generated/{token}")
 async def get_generated(token: str):
+    print(f"GET /generated/ request with token: {token[:50]}...")
+    
+    # First try direct lookup
     target = GENERATED_FILES.get(token)
-    if not target or not target.exists():
+    if target and target.exists():
+        print(f"Found file from cache: {target}")
+    else:
+        # Try decoding as URL-encoded path
         try:
             decoded = unquote(token)
             candidate = Path(decoded)
             if candidate.exists() and candidate.is_file():
                 target = candidate
-        except Exception:
-            pass
-
-    if target and target.exists() and target.is_file():
-        media_type = "application/octet-stream"
-        if target.suffix.lower() == ".mp4":
-            media_type = "video/mp4"
-        elif target.suffix.lower() == ".srt":
-            media_type = "text/plain; charset=utf-8"
-        elif target.suffix.lower() == ".png":
-            media_type = "image/png"
-        return FileResponse(
-            path=target,
-            media_type=media_type,
-            headers={
-                "Content-Disposition": f'inline; filename="{target.name}"',
-                "Accept-Ranges": "bytes"
-            }
-        )
-
-    raise HTTPException(status_code=404, detail="file not found")
+                print(f"Found file from decoded path: {target}")
+        except Exception as e:
+            print(f"Error decoding token: {e}")
+    
+    if not target or not target.exists():
+        print(f"File not found - token: {token[:50]}, target: {target}")
+        raise HTTPException(status_code=404, detail=f"file not found: {target}")
+    
+    media_type = "application/octet-stream"
+    if target.suffix.lower() == ".mp4":
+        media_type = "video/mp4"
+    elif target.suffix.lower() == ".srt":
+        media_type = "text/plain; charset=utf-8"
+    elif target.suffix.lower() == ".png":
+        media_type = "image/png"
+    
+    print(f"Serving file: {target} as {media_type}")
+    return FileResponse(
+        path=target,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'inline; filename="{target.name}"',
+            "Accept-Ranges": "bytes"
+        }
+    )
 
 
 @app.get("/download/{token}")
@@ -124,12 +138,21 @@ async def status(token: str):
     }
     if job.get("status") == "finished":
         result = job.get("result") or {}
+        video_path = result.get("video")
+        captions_path = result.get("captions")
+        
+        print(f"Job {token[:20]}... finished:")
+        print(f"  Project: {result.get('project')}")
+        print(f"  Video path: {video_path} (exists: {Path(video_path).exists() if video_path else False})")
+        print(f"  Captions path: {captions_path}")
+        
         payload.update({
             "project": str(result.get("project", "")).replace("\\", "/"),
             "video": _register_generated_file(result.get("video")) if result.get("video") else None,
             "captions": _register_generated_file(result.get("captions")) if result.get("captions") else None,
         })
     elif job.get("status") == "error":
+        print(f"Job {token[:20]}... error: {job.get('error')}")
         payload.update({"error": job.get("error")})
     return JSONResponse(payload)
 
