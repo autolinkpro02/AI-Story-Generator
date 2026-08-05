@@ -552,7 +552,10 @@
         emptyState.style.display = 'none';
         videoDisplay.style.display = 'block';
         player.src = videoUrl;
-        downloadBtn.href = videoUrl;
+
+        const downloadUrl = videoUrl.replace('/generated/', '/download/');
+        downloadBtn.href = downloadUrl;
+        downloadBtn.setAttribute('download', 'story_video.mp4');
         player.play();
       }
 

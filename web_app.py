@@ -58,6 +58,15 @@ async def index():
 @app.get("/generated/{token}")
 async def get_generated(token: str):
     target = GENERATED_FILES.get(token)
+    if not target or not target.exists():
+        try:
+            decoded = unquote(token)
+            candidate = Path(decoded)
+            if candidate.exists() and candidate.is_file():
+                target = candidate
+        except Exception:
+            pass
+
     if target and target.exists() and target.is_file():
         media_type = "application/octet-stream"
         if target.suffix.lower() == ".mp4":
@@ -66,16 +75,39 @@ async def get_generated(token: str):
             media_type = "text/plain; charset=utf-8"
         elif target.suffix.lower() == ".png":
             media_type = "image/png"
-        return FileResponse(path=target, media_type=media_type)
+        return FileResponse(
+            path=target,
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f'inline; filename="{target.name}"',
+                "Accept-Ranges": "bytes"
+            }
+        )
 
-    # Fallback: try decoding token as an encoded absolute path
-    try:
-        decoded = unquote(token)
-        candidate = Path(decoded)
-        if candidate.exists() and candidate.is_file():
-            return FileResponse(path=candidate)
-    except Exception:
-        pass
+    raise HTTPException(status_code=404, detail="file not found")
+
+
+@app.get("/download/{token}")
+async def download_generated(token: str):
+    target = GENERATED_FILES.get(token)
+    if not target or not target.exists():
+        try:
+            decoded = unquote(token)
+            candidate = Path(decoded)
+            if candidate.exists() and candidate.is_file():
+                target = candidate
+        except Exception:
+            pass
+
+    if target and target.exists() and target.is_file():
+        return FileResponse(
+            path=target,
+            media_type="application/octet-stream",
+            filename=target.name,
+            headers={
+                "Content-Disposition": f'attachment; filename="{target.name}"'
+            }
+        )
     raise HTTPException(status_code=404, detail="file not found")
 
 
