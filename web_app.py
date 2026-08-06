@@ -59,7 +59,7 @@ async def index():
     return HTMLResponse(INDEX_PATH.read_text(encoding="utf-8"))
 
 
-@app.get("/generated/{token}")
+@app.get("/generated/{token:path}")
 async def get_generated(token: str):
     print(f"GET /generated/ request with token: {token[:50]}...")
     
@@ -101,7 +101,7 @@ async def get_generated(token: str):
     )
 
 
-@app.get("/download/{token}")
+@app.get("/download/{token:path}")
 async def download_generated(token: str):
     target = GENERATED_FILES.get(token)
     if not target or not target.exists():
