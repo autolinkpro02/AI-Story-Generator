@@ -231,9 +231,8 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
         "-b:a", "128k",
         "-ar", "44100",
         "-ac", "2",
-        "-af", "volume=2.0",
+        "-af", "volume=2.0,apad",
         "-movflags", "+faststart",
-        "-shortest",
         str(output_path),
     ]
 
