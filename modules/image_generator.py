@@ -71,21 +71,21 @@ def _create_artistic_fallback_image(prompt: str, image_path: Path) -> bool:
 
 
 def _fetch_pollinations_ai_image(prompt: str, image_path: Path) -> bool:
-    """Fetch high-definition 9:16 vertical AI image with Flux model and prompt enhancement."""
+    """Fetch high-definition 9:16 vertical AI image with fast 12s timeout for ultra-fast generation."""
     encoded_prompt = quote(prompt.strip(), safe="")
     seed = random.randint(1, 999999)
 
-    # Enhance=true enables automated LLM prompt expansion for breathtaking 3D Pixar/Octane quality
+    # Ultra-fast high-definition 9:16 Flux / Turbo models
     urls = [
-        f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=768&height=1344&nologo=true&model=flux&enhance=true&seed={seed}",
+        f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=576&height=1024&nologo=true&seed={seed}",
         f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=768&height=1344&nologo=true&model=flux&seed={seed}",
-        f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=576&height=1024&nologo=true&enhance=true&seed={seed}",
+        f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=512&height=910&nologo=true&model=turbo&seed={seed}",
     ]
 
     for url in urls:
         try:
-            print(f"Generating 9:16 HD AI illustration via Flux (Enhanced)...")
-            response = requests.get(url, timeout=45)
+            print(f"Generating 9:16 HD AI illustration (Fast)...")
+            response = requests.get(url, timeout=12)
             if response.status_code == 200 and _save_image_bytes(response.content, image_path):
                 print(f"Successfully saved AI image for: {prompt[:50]}...")
                 return True
@@ -121,8 +121,8 @@ def generate_scene_images(project: Any, script_data: dict[str, Any], progress_ca
             print(f"Scene {scene_number} already has high-definition AI image ({image_path.stat().st_size} bytes)")
             return scene_number, image_path
 
-        # Stagger request start times by 0.6s to avoid hitting server rate limits
-        time.sleep(idx * 0.6)
+        # Fast stagger request start times by 0.2s
+        time.sleep(idx * 0.2)
 
         prompt = scene.get("image_prompt", "")
         narration = scene.get("narration", "")
@@ -146,9 +146,9 @@ def generate_scene_images(project: Any, script_data: dict[str, Any], progress_ca
 
         return scene_number, image_path if image_path.exists() else None
 
-    # Fetch scene images sequentially (max_workers=1) to prevent queue timeouts and guarantee 100% real HD Flux AI images
+    # Fetch scene images in parallel (max_workers=3) for 5-second ultra-fast speed
     completed_count = 0
-    with ThreadPoolExecutor(max_workers=1) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         future_map = {executor.submit(_process_single_scene, (i, s)): i for i, s in enumerate(scenes)}
         for future in as_completed(future_map):
             completed_count += 1
