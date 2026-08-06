@@ -105,7 +105,7 @@ def _validate(data: dict) -> list:
 
 def _generate_fallback_script(request: ScriptRequest) -> ScriptResult:
     clean_idea = request.idea.strip()
-    char_desc = request.character_description or f"The main character from the story: {clean_idea}"
+    char_desc = request.character_description or clean_idea
     title = f"Story of {clean_idea[:30].title()}"
     per_scene_dur = max(3, request.duration_seconds // 6)
     
