@@ -26,6 +26,29 @@ def _try_windows_tts(text: str, output_path: Path) -> bool:
         return False
 
 
+def _load_bold_font(font_size: int):
+    candidates = [
+        "arialbd.ttf",
+        "arial.ttf",
+        "C:/Windows/Fonts/arialbd.ttf",
+        "C:/Windows/Fonts/arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"
+    ]
+    for candidate in candidates:
+        try:
+            return ImageFont.truetype(candidate, font_size)
+        except Exception:
+            pass
+    try:
+        return ImageFont.load_default(size=font_size)
+    except Exception:
+        return ImageFont.load_default()
+
+
 def build_video(project: Any, script_data: dict[str, Any], progress_callback: Optional[callable] = None) -> list[Path]:
     """Create a basic vertical video from scene images and narration text."""
     project.output_dir.mkdir(parents=True, exist_ok=True)
@@ -258,10 +281,7 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
 
             # Big, Bold 68px High-Impact Subtitles for Shorts/Reels/TikTok
             font_size = 68
-            try:
-                font = ImageFont.truetype("arial.ttf", font_size)
-            except Exception:
-                font = ImageFont.load_default()
+            font = _load_bold_font(font_size)
 
             caption_text = scene.get("narration", "")
             wrapped_lines = textwrap.wrap(caption_text, width=22)
