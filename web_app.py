@@ -125,11 +125,17 @@ async def download_generated(token: str):
     raise HTTPException(status_code=404, detail="file not found")
 
 
-@app.get("/status/{token}")
+@app.get("/status/{token:path}")
 async def status(token: str):
-    job = JOBS.get(unquote(token))
+    clean_token = unquote(token)
+    job = JOBS.get(clean_token)
     if not job:
-        raise HTTPException(status_code=404, detail="job not found")
+        return JSONResponse({
+            "status": "error",
+            "step": "Job session expired or server restarted.",
+            "error": "Job session expired or server restarted. Please click Generate Video to start a new run.",
+            "progress": 0
+        })
     payload = {
         "status": job.get("status"),
         "step": job.get("step", "Processing..."),
