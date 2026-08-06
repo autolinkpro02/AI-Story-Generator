@@ -206,9 +206,12 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
     
     # Calculate total duration and target frame count
     FPS = 24
-    total_audio_duration = sum(scene_audio_durations.values()) if scene_audio_durations else 30.0
-    if total_audio_duration <= 0:
-        total_audio_duration = 30.0
+    total_target_duration = sum(
+        max(scene_audio_durations.get(s.get("scene_number", idx + 1), 0.0), float(s.get("duration_seconds", 5)))
+        for idx, s in enumerate(scenes)
+    )
+    if total_target_duration <= 0:
+        total_target_duration = 30.0
 
     cmd = [
         "ffmpeg",
@@ -232,6 +235,7 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
         "-ar", "44100",
         "-ac", "2",
         "-af", "volume=2.0,apad",
+        "-t", f"{total_target_duration:.2f}",
         "-movflags", "+faststart",
         str(output_path),
     ]
