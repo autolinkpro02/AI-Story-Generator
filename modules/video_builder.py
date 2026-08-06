@@ -227,7 +227,11 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
         if not image_path.exists():
             continue
 
-        duration = scene_audio_durations.get(scene_number, float(scene.get("duration_seconds", 4)))
+        # Respect requested scene target duration (e.g. 10s per scene for 60s / 1 Min videos)
+        target_scene_dur = float(scene.get("duration_seconds", 5))
+        audio_dur = scene_audio_durations.get(scene_number, 0.0)
+        duration = max(audio_dur, target_scene_dur) if target_scene_dur > 0 else max(2.5, audio_dur)
+        
         scene_frames = max(1, int(round(duration * FPS)))
         motion_type = motion_types[idx % len(motion_types)]
 
@@ -248,29 +252,32 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
             # Pre-render scene gradient overlay and text drop-shadow ONCE per scene
             scene_overlay = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
             overlay_draw = ImageDraw.Draw(scene_overlay)
-            for y in range(1350, 1920):
-                alpha = int(220 * ((y - 1350) / 570))
+            for y in range(1250, 1920):
+                alpha = int(230 * ((y - 1250) / 670))
                 overlay_draw.line([(0, y), (1080, y)], fill=(0, 0, 0, alpha))
 
-            font_size = 46
+            # Big, Bold 68px High-Impact Subtitles for Shorts/Reels/TikTok
+            font_size = 68
             try:
                 font = ImageFont.truetype("arial.ttf", font_size)
             except Exception:
                 font = ImageFont.load_default()
 
             caption_text = scene.get("narration", "")
-            wrapped_lines = textwrap.wrap(caption_text, width=32)
+            wrapped_lines = textwrap.wrap(caption_text, width=22)
             wrapped_text = "\n".join(wrapped_lines)
             
-            bbox = overlay_draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=8)
+            bbox = overlay_draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=10)
             text_w = bbox[2] - bbox[0]
             text_h = bbox[3] - bbox[1]
 
             tx = (1080 - text_w) // 2
-            ty = 1680 - (text_h // 2)
+            ty = 1600 - (text_h // 2)
 
-            overlay_draw.multiline_text((tx + 2, ty + 2), wrapped_text, fill=(0, 0, 0, 240), font=font, align="center", spacing=8)
-            overlay_draw.multiline_text((tx, ty), wrapped_text, fill=(255, 255, 255, 255), font=font, align="center", spacing=8)
+            # Heavy black drop-shadow + Bold white/yellow subtitle text
+            overlay_draw.multiline_text((tx + 3, ty + 3), wrapped_text, fill=(0, 0, 0, 255), font=font, align="center", spacing=10)
+            overlay_draw.multiline_text((tx - 3, ty - 3), wrapped_text, fill=(0, 0, 0, 255), font=font, align="center", spacing=10)
+            overlay_draw.multiline_text((tx, ty), wrapped_text, fill=(255, 255, 255, 255), font=font, align="center", spacing=10)
 
             for frame_num in range(scene_frames):
                 current_frame += 1
