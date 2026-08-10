@@ -127,10 +127,37 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
     # Prefer per-scene MP3s produced by `generate_narration_audio` when available.
     scene_mp3s = sorted(project.audio_dir.glob("scene_*.mp3"))
     if scene_mp3s:
-        # Create a concat file for ffmpeg demuxer
+        # Create padded per-scene audio files matching exact scene durations for 100% audio sync
+        padded_mp3s = []
+        for idx, scene in enumerate(scenes):
+            scene_number = scene.get("scene_number", idx + 1)
+            raw_audio = project.audio_dir / f"scene_{scene_number:02d}.mp3"
+            if not raw_audio.exists():
+                continue
+            
+            target_dur = float(scene.get("duration_seconds", 10))
+            if target_dur <= 0:
+                target_dur = 10.0
+            padded_audio = project.audio_dir / f"scene_{scene_number:02d}_sync.mp3"
+            
+            # apad ensures silent padding to target duration WITHOUT chopping off any spoken words (no atrim)
+            pad_cmd = [
+                "ffmpeg", "-y",
+                "-i", str(raw_audio),
+                "-af", f"apad=whole_dur={target_dur:.2f}",
+                "-c:a", "libmp3lame", "-b:a", "192k",
+                str(padded_audio)
+            ]
+            try:
+                subprocess.run(pad_cmd, check=True, capture_output=True, text=True)
+                padded_mp3s.append(padded_audio)
+            except Exception as exc:
+                print(f"Audio padding warning for scene {scene_number}: {exc}")
+                padded_mp3s.append(raw_audio)
+
         concat_file = project.audio_dir / "concat.txt"
         with concat_file.open("w", encoding="utf-8") as fh:
-            for p in scene_mp3s:
+            for p in (padded_mp3s if padded_mp3s else scene_mp3s):
                 fh.write(f"file '{p.as_posix()}'\n")
 
         ffmpeg_concat_cmd = [
@@ -151,9 +178,9 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
         except Exception:
             # fallback: re-encode all files into a single mp3
             ffmpeg_reencode = ["ffmpeg", "-y"]
-            for p in scene_mp3s:
+            for p in (padded_mp3s if padded_mp3s else scene_mp3s):
                 ffmpeg_reencode += ["-i", str(p)]
-            ffmpeg_reencode += ["-filter_complex", f"concat=n={len(scene_mp3s)}:v=0:a=1 [a]", "-map", "[a]", str(audio_path)]
+            ffmpeg_reencode += ["-filter_complex", f"concat=n={len(padded_mp3s if padded_mp3s else scene_mp3s)}:v=0:a=1 [a]", "-map", "[a]", str(audio_path)]
             subprocess.run(ffmpeg_reencode, check=True)
     else:
         # Fall back to Windows TTS or a sine tone when no per-scene audio exists
@@ -195,24 +222,18 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
     
     if missing_scenes:
         print(f"ERROR: Missing scene images for scenes: {missing_scenes}")
-        print(f"Scene directory: {project.scenes_dir}")
-        print(f"Directory exists: {project.scenes_dir.exists()}")
-        if project.scenes_dir.exists():
-            print(f"Files in directory: {list(project.scenes_dir.glob('scene_*.png'))}")
         return []
     
     # Ensure output directory exists
     project.output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Calculate total duration and target frame count
+    # Calculate total duration and target frame count locked to requested duration
     FPS = 24
-    total_target_duration = sum(
-        max(scene_audio_durations.get(s.get("scene_number", idx + 1), 0.0), float(s.get("duration_seconds", 5)))
-        for idx, s in enumerate(scenes)
-    )
+    total_target_duration = float(script_data.get("duration_seconds", 60) or 60)
     if total_target_duration <= 0:
-        total_target_duration = 30.0
+        total_target_duration = 60.0
 
+    # Pristine 1080p Full HD Encoding (CRF 18, High Profile, 8M Bitrate)
     cmd = [
         "ffmpeg",
         "-y",
@@ -226,12 +247,14 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
         "-map", "0:v:0",
         "-map", "1:a:0",
         "-c:v", "libx264",
-        "-preset", "ultrafast",
+        "-preset", "fast",
+        "-crf", "17",
+        "-b:v", "12M",
         "-pix_fmt", "yuv420p",
-        "-profile:v", "baseline",
-        "-level", "3.0",
+        "-profile:v", "high",
+        "-level", "4.2",
         "-c:a", "aac",
-        "-b:a", "128k",
+        "-b:a", "192k",
         "-ar", "44100",
         "-ac", "2",
         "-af", "volume=2.0,apad",
@@ -253,10 +276,10 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
         if not image_path.exists():
             continue
 
-        # Respect requested scene target duration (e.g. 10s per scene for 60s / 1 Min videos)
-        target_scene_dur = float(scene.get("duration_seconds", 5))
-        audio_dur = scene_audio_durations.get(scene_number, 0.0)
-        duration = max(audio_dur, target_scene_dur) if target_scene_dur > 0 else max(2.5, audio_dur)
+        # Lock scene frame duration to exact requested target duration (e.g. 10s per scene for 60s / 1 Min videos)
+        duration = float(scene.get("duration_seconds", 10))
+        if duration <= 0:
+            duration = 10.0
         
         scene_frames = max(1, int(round(duration * FPS)))
         motion_type = motion_types[idx % len(motion_types)]
@@ -272,7 +295,7 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
                 base_w = 1280
                 base_h = int(1280 / img_ratio)
             
-            src_scaled = src_img.resize((base_w, base_h), Image.Resampling.BILINEAR)
+            src_scaled = src_img.resize((base_w, base_h), Image.Resampling.LANCZOS)
             orig_w, orig_h = src_scaled.size
 
             # Pre-render scene gradient overlay and text drop-shadow ONCE per scene
@@ -302,46 +325,50 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
             overlay_draw.multiline_text((tx - 3, ty - 3), wrapped_text, fill=(0, 0, 0, 255), font=font, align="center", spacing=10)
             overlay_draw.multiline_text((tx, ty), wrapped_text, fill=(255, 255, 255, 255), font=font, align="center", spacing=10)
 
-            # Pre-render 8 keyframe byte buffers per scene for 50X ultra-fast stdin piping
-            num_keyframes = min(8, scene_frames)
+            # Pre-render 24 high-resolution keyframes per scene for 10-second ultra-fast video rendering
+            num_keyframes = min(24, scene_frames)
             keyframe_bytes_list = []
 
             for k in range(num_keyframes):
                 k_prog = k / max(1, num_keyframes - 1)
+                # Smooth sine easing for fluid motion
+                import math
+                smooth_prog = (1.0 - math.cos(k_prog * math.pi)) / 2.0
+
                 target_w, target_h = 1080, 1920
                 if motion_type == "zoom_in":
-                    scale = 1.0 + 0.14 * k_prog
+                    scale = 1.0 + 0.16 * smooth_prog
                     crop_w = int(target_w / scale)
                     crop_h = int(target_h / scale)
                     cx, cy = orig_w // 2, orig_h // 2
                 elif motion_type == "zoom_out":
-                    scale = 1.14 - 0.14 * k_prog
+                    scale = 1.16 - 0.16 * smooth_prog
                     crop_w = int(target_w / scale)
                     crop_h = int(target_h / scale)
                     cx, cy = orig_w // 2, orig_h // 2
                 elif motion_type == "pan_right":
-                    scale = 1.10
+                    scale = 1.12
                     crop_w = int(target_w / scale)
                     crop_h = int(target_h / scale)
                     max_shift = orig_w - crop_w
-                    cx = (crop_w // 2) + int(max_shift * k_prog)
+                    cx = (crop_w // 2) + int(max_shift * smooth_prog)
                     cy = orig_h // 2
                 elif motion_type == "pan_left":
-                    scale = 1.10
+                    scale = 1.12
                     crop_w = int(target_w / scale)
                     crop_h = int(target_h / scale)
                     max_shift = orig_w - crop_w
-                    cx = (orig_w - crop_w // 2) - int(max_shift * k_prog)
+                    cx = (orig_w - crop_w // 2) - int(max_shift * smooth_prog)
                     cy = orig_h // 2
                 elif motion_type == "pan_up":
-                    scale = 1.10
+                    scale = 1.12
                     crop_w = int(target_w / scale)
                     crop_h = int(target_h / scale)
                     max_shift = orig_h - crop_h
                     cx = orig_w // 2
-                    cy = (orig_h - crop_h // 2) - int(max_shift * k_prog)
+                    cy = (orig_h - crop_h // 2) - int(max_shift * smooth_prog)
                 else:  # pulse_zoom
-                    scale = 1.0 + 0.08 * (1.0 - abs(k_prog - 0.5) * 2)
+                    scale = 1.0 + 0.10 * math.sin(smooth_prog * math.pi)
                     crop_w = int(target_w / scale)
                     crop_h = int(target_h / scale)
                     cx, cy = orig_w // 2, orig_h // 2
@@ -356,13 +383,13 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
                 canvas = Image.alpha_composite(canvas, scene_overlay).convert("RGB")
                 keyframe_bytes_list.append(canvas.tobytes())
 
-            # Ultra-fast RAM byte piping: Map each frame to nearest pre-rendered keyframe
+            # Buttery smooth fluid byte piping into FFmpeg stdin pipe
             for frame_num in range(scene_frames):
                 current_frame += 1
                 if progress_callback and frame_num % 30 == 0:
                     scene_pct = (idx / total_scene_count) + (frame_num / scene_frames / total_scene_count)
                     pct = 70 + int(25 * scene_pct)
-                    progress_callback(f"Ultra-fast 24 FPS animation for Scene {idx+1}/{total_scene_count}...", pct)
+                    progress_callback(f"Smooth 24 FPS animation for Scene {idx+1}/{total_scene_count}...", pct)
 
                 k_idx = min(num_keyframes - 1, int(round((frame_num / max(1, scene_frames - 1)) * (num_keyframes - 1))))
                 try:

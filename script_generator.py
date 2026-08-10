@@ -105,55 +105,68 @@ def _validate(data: dict) -> list:
 
 def _generate_fallback_script(request: ScriptRequest) -> ScriptResult:
     clean_idea = request.idea.strip()
-    char_desc = request.character_description or clean_idea
-    title = f"Story of {clean_idea[:30].title()}"
+    char_desc = request.character_description or f"the main hero of {clean_idea[:40]}"
+    title = f"The Legend of {clean_idea[:30].title()}"
     per_scene_dur = max(3, request.duration_seconds // 6)
     
+    # Environment and topic extraction
+    idea_words = clean_idea.split()
+    topic = " ".join(idea_words[:4]) if idea_words else clean_idea[:30]
+
+    # Extract subject and environment setting dynamically
+    idea_words = clean_idea.split()
+    subject = (request.character_description or clean_idea).strip()
+    if len(subject) > 55:
+        subject = subject[:55].rsplit(" ", 1)[0]
+
+    env = f"in {clean_idea[:40]}" if len(clean_idea) > 10 else "in an enchanted realm"
+    style = request.visual_style or "cinematic artwork, 8k render"
+
     scenes = [
         {
             "scene_number": 1,
-            "narration": f"Once upon a time, a story unfolded: {clean_idea[:90]}.",
-            "image_prompt": f"Masterpiece digital art depicting {char_desc}, standing in a scenic landscape at dawn, {request.visual_style}",
+            "narration": f"In a world of magic and wonder, {clean_idea}. A extraordinary adventure began under glowing skies.",
+            "image_prompt": f"masterpiece artwork of {subject}, starting an epic quest {env}, {style}, vibrant opening light",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 2,
-            "narration": f"As the sun rose, a mysterious discovery changed everything.",
-            "image_prompt": f"Masterpiece digital art depicting {char_desc}, discovering a magical glowing wonder, {request.visual_style}",
+            "narration": f"Guided by destiny, {subject[:30]} ventured deeper, discovering a glowing magical secret that sparked new hope.",
+            "image_prompt": f"masterpiece artwork of {subject}, discovering a glowing magical relic {env}, {style}, luminescent rays",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 3,
-            "narration": "A sudden challenge appeared, testing true courage and resolve.",
-            "image_prompt": f"Masterpiece digital art depicting {char_desc}, facing a stormy mystical challenge, {request.visual_style}",
+            "narration": f"Suddenly, a formidable trial blocked the path. Swirling mists and dramatic shadows tested true bravery.",
+            "image_prompt": f"masterpiece artwork of {subject}, braving a dramatic stormy obstacle {env}, {style}, epic scale",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 4,
-            "narration": "Through inner strength and hope, a path through darkness opened.",
-            "image_prompt": f"Masterpiece digital art depicting {char_desc}, surrounded by warm magical light rays, {request.visual_style}",
+            "narration": f"Calling upon inner strength, brilliant light shattered the dark mist, revealing a hidden path forward.",
+            "image_prompt": f"masterpiece artwork of {subject}, surrounded by golden celestial light {env}, {style}, soft bokeh",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 5,
-            "narration": "With every step forward, peace and joy returned once more.",
-            "image_prompt": f"Masterpiece digital art depicting {char_desc}, celebrating joyfully in a glowing world, {request.visual_style}",
+            "narration": f"With a triumphant surge of courage, victory was achieved. Vibrant colors bloomed in joyful celebration.",
+            "image_prompt": f"masterpiece artwork of {subject}, holding a lantern celebrating victory {env}, {style}, vibrant colors",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 6,
-            "narration": "And so, an unforgettable journey taught a timeless lesson.",
-            "image_prompt": f"Masterpiece digital art depicting {char_desc}, looking out at a stunning golden sunset, {request.visual_style}",
+            "narration": f"And as golden twilight painted the horizon, peace settled over the land, leaving a timeless legend forever.",
+            "image_prompt": f"masterpiece artwork of {subject}, gazing out at a majestic golden sunset over {env}, {style}, beautiful horizon",
             "duration_seconds": per_scene_dur
         }
     ]
 
     return ScriptResult(raw={
         "title": title,
-        "hook": f"Discover the story of {clean_idea[:30]}",
+        "hook": f"Discover the epic tale of {topic}",
         "character_description": char_desc,
         "scenes": scenes,
-        "closing_line": "Every great journey starts with a single step."
+        "closing_line": f"The story of {topic} lives on forever."
     })
 
 

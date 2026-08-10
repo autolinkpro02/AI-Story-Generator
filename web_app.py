@@ -47,7 +47,7 @@ def _parse_story_form(data: dict[str, Any]) -> dict[str, Any]:
     return {
         "idea": idea,
         "story_type": str(data.get("story_type", "emotional") or "emotional").strip(),
-        "visual_style": str(data.get("visual_style", "storybook watercolor illustration") or "storybook watercolor illustration").strip(),
+        "visual_style": str(data.get("visual_style", "cinematic photoreal fantasy portrait, 3d octane render, 8k") or "cinematic photoreal fantasy portrait, 3d octane render, 8k").strip(),
         "duration_seconds": duration,
         "character_description": (str(data.get("character_description", "") or "").strip() or None),
         "title": (str(data.get("title", "") or "").strip() or None),

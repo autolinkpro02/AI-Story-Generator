@@ -17,7 +17,9 @@ import config
 
 def _save_image_bytes(image_bytes: bytes, image_path: Path) -> bool:
     try:
-        if not image_bytes or len(image_bytes) < 4000:
+        # Real AI images are > 20 KB (20,000 bytes). Reject low-res fallback canvases (< 20 KB)
+        if not image_bytes or len(image_bytes) < 20000:
+            print(f"Rejected low-res image ({len(image_bytes) if image_bytes else 0} bytes < 20,000 bytes)")
             return False
         image_path.parent.mkdir(parents=True, exist_ok=True)
         with Image.open(BytesIO(image_bytes)) as image:
@@ -29,77 +31,50 @@ def _save_image_bytes(image_bytes: bytes, image_path: Path) -> bool:
         return False
 
 
-def _create_artistic_fallback_image(prompt: str, image_path: Path) -> bool:
-    """Instant artistic gradient canvas generation in 0.001 seconds if remote network hangs."""
-    try:
-        from PIL import ImageDraw, ImageFont
-        w, h = 576, 1024
-        
-        # Ensure parent directory exists
-        image_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        img = Image.new("RGB", (w, h), (15, 23, 42))
-        draw = ImageDraw.Draw(img)
-        
-        # Draw rich cinematic gradient
-        for y in range(h):
-            r = int(15 + (45 - 15) * (y / h))
-            g = int(23 + (85 - 23) * (y / h))
-            b = int(42 + (140 - 42) * (y / h))
-            draw.line([(0, y), (w, y)], fill=(r, g, b))
-            
-        # Draw glowing ambient moon/sun orb
-        draw.ellipse([w // 2 - 120, h // 3 - 120, w // 2 + 120, h // 3 + 120], fill=(255, 220, 150))
-        
-        # Add some visual interest with stars
-        import random
-        random.seed(hash(prompt) % (2**32))
-        for _ in range(20):
-            x = random.randint(0, w)
-            y = random.randint(0, h)
-            size = random.randint(1, 3)
-            draw.ellipse([x - size, y - size, x + size, y + size], fill=(255, 255, 255))
-        
-        img.save(image_path, format="PNG")
-        print(f"Created fallback image at {image_path} ({image_path.stat().st_size} bytes)")
-        return True
-    except Exception as exc:
-        print(f"Fallback canvas creation error: {exc}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-
 def _fetch_pollinations_ai_image(prompt: str, image_path: Path) -> bool:
-    """Fetch high-definition 9:16 vertical AI image with Flux model and prompt enhancement."""
-    encoded_prompt = quote(prompt.strip(), safe="")
-    seed = random.randint(1, 999999)
+    """Fetch high-definition vertical AI image with fast native Flux model endpoints."""
+    # Truncate prompt to 120 chars to prevent 400/500 URL syntax errors
+    clean_prompt = prompt.strip()[:120]
+    encoded_prompt = quote(clean_prompt, safe="")
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
 
-    # Enhance=true enables automated LLM prompt expansion for breathtaking 3D Pixar/Octane quality
-    urls = [
-        f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=768&height=1344&nologo=true&model=flux&enhance=true&seed={seed}",
-        f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=768&height=1344&nologo=true&model=flux&seed={seed}",
-        f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=576&height=1024&nologo=true&enhance=true&seed={seed}",
-    ]
+    # Retry up to 5 attempts with different random seeds
+    for attempt in range(5):
+        seed = random.randint(1, 999999)
+        urls = [
+            f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=768&height=1280&nologo=true&seed={seed}",
+            f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=768&height=1344&nologo=true&model=flux&seed={seed}",
+            f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=768&height=1280&nologo=true&model=turbo&seed={seed}",
+            f"https://pollinations.ai/p/{encoded_prompt}?width=768&height=1280&seed={seed}",
+        ]
 
-    for url in urls:
-        try:
-            print(f"Generating 9:16 HD AI illustration via Flux (Enhanced)...")
-            response = requests.get(url, timeout=45)
-            if response.status_code == 200 and _save_image_bytes(response.content, image_path):
-                print(f"Successfully saved AI image for: {prompt[:50]}...")
-                return True
-        except Exception as exc:
-            print(f"Pollinations fetch error: {exc}")
+        for url in urls:
+            try:
+                print(f"Fetching High-Definition AI illustration via Flux (Attempt {attempt+1}/5)...")
+                response = requests.get(url, headers=headers, timeout=25)
+                if response.status_code == 429:
+                    print(f"Pollinations AI rate limited (HTTP 429). Sleeping 3.5s for rate reset...")
+                    time.sleep(3.5)
+                    continue
+                if response.status_code == 200 and _save_image_bytes(response.content, image_path):
+                    print(f"Successfully saved HD AI image ({image_path.stat().st_size} bytes) for: {clean_prompt[:40]}...")
+                    return True
+            except Exception as exc:
+                print(f"Pollinations fetch error: {exc}")
+            
+            time.sleep(1.0)
 
-    print(f"Using fallback for prompt: {prompt[:40]}...")
-    return _create_artistic_fallback_image(prompt, image_path)
+    print(f"FAILED to fetch AI image for prompt: {prompt[:40]}")
+    return False
 
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
-def generate_scene_images(project: Any, script_data: dict[str, Any], progress_callback: Optional[callable] = None) -> list[Path]:
+def generate_scene_images(project: Any, script_data: dict[str, Any], progress_callback: Optional[callable] = None, overwrite: bool = True) -> list[Path]:
     """Generate 100% real AI illustrations concurrently for all scenes in parallel."""
     output_files: list[Path] = []
     project.scenes_dir.mkdir(parents=True, exist_ok=True)
@@ -109,40 +84,36 @@ def generate_scene_images(project: Any, script_data: dict[str, Any], progress_ca
         return []
 
     if progress_callback:
-        progress_callback(f"Downloading 9:16 HD AI illustrations for {len(scenes)} scenes in parallel...", 35)
+        progress_callback(f"Downloading 1080x1920 HD AI illustrations for {len(scenes)} scenes...", 35)
 
     def _process_single_scene(idx_scene):
         idx, scene = idx_scene
         scene_number = scene.get("scene_number", idx + 1)
         image_path = project.scenes_dir / f"scene_{scene_number:02d}.png"
         
-        # Real AI images are always > 50 KB (50,000 bytes). If < 50 KB, it's a fallback canvas, so re-download!
-        if image_path.exists() and image_path.stat().st_size > 50000:
+        # Real AI images are always > 20 KB (20,000 bytes). If < 20 KB, it's a fallback canvas, so re-download!
+        if not overwrite and image_path.exists() and image_path.stat().st_size > 20000:
             print(f"Scene {scene_number} already has high-definition AI image ({image_path.stat().st_size} bytes)")
             return scene_number, image_path
 
-        # Stagger request start times by 0.5s
-        time.sleep(idx * 0.5)
+        # Stagger requests by 2.0s to avoid rate limiting
+        if idx > 0:
+            time.sleep(2.0)
 
         prompt = scene.get("image_prompt", "")
-        narration = scene.get("narration", "")
-        style_modifier = (
-            ", 9:16 vertical portrait wallpaper, 8k resolution, high quality, "
-            "vibrant colors, masterwork, masterpiece digital illustration"
-        )
-        augmented_prompt = f"{prompt}, {narration[:80]}{style_modifier}"
+        style_modifier = scene.get("visual_style", "")
+        if not style_modifier or "pixar" not in style_modifier.lower():
+            augmented_prompt = f"{prompt}, 8k resolution, cinematic lighting, masterpiece, hyper-detailed vertical 9:16 portrait wallpaper"
+        else:
+            augmented_prompt = f"{prompt}, 8k resolution, 3d octane render, masterpiece, hyper-detailed vertical 9:16 portrait wallpaper"
 
-        print(f"--- Generating Scene {scene_number} AI Illustration (Parallel) ---")
+        print(f"--- Generating Scene {scene_number} 1080x1920 HD AI Illustration ---")
         success = _fetch_pollinations_ai_image(augmented_prompt, image_path)
         
         if not success:
-            print(f"Retrying Scene {scene_number} with simplified prompt...")
-            simple_prompt = f"digital art illustration, {prompt[:120]}, vertical 9:16 portrait"
+            print(f"Retrying Scene {scene_number} with direct prompt...")
+            simple_prompt = f"3d animated character portrait of {prompt[:60]}, 8k resolution"
             success = _fetch_pollinations_ai_image(simple_prompt, image_path)
-        
-        if not success:
-            print(f"External API unavailable for Scene {scene_number}; using instant fallback canvas")
-            _create_artistic_fallback_image(augmented_prompt, image_path)
 
         return scene_number, image_path if image_path.exists() else None
 

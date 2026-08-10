@@ -32,6 +32,14 @@ def run_story_pipeline(
     )
     script_result = generate_script(request)
     script_data = script_result.raw
+    script_data["duration_seconds"] = duration_seconds
+    script_data["visual_style"] = visual_style
+
+    scenes = script_data.get("scenes", [])
+    per_scene_dur = duration_seconds // max(1, len(scenes))
+    for s in scenes:
+        s["visual_style"] = visual_style
+        s["duration_seconds"] = per_scene_dur
 
     if title:
         script_data["title"] = title

@@ -45,7 +45,7 @@ def _try_edge_tts(text: str, output_path: Path) -> bool:
 from concurrent.futures import ThreadPoolExecutor
 
 
-def generate_narration_audio(project: Any, script_data: dict[str, Any]) -> list[Path]:
+def generate_narration_audio(project: Any, script_data: dict[str, Any], overwrite: bool = True) -> list[Path]:
     """Create per-scene narration audio files concurrently using parallel TTS workers."""
     output_files: list[Path] = []
     project.audio_dir.mkdir(parents=True, exist_ok=True)
@@ -58,13 +58,19 @@ def generate_narration_audio(project: Any, script_data: dict[str, Any]) -> list[
         narration_text = scene.get("narration", "")
         output_path = project.audio_dir / f"scene_{scene_number:02d}.mp3"
 
-        if output_path.exists() and output_path.stat().st_size > 1000:
+        if not overwrite and output_path.exists() and output_path.stat().st_size > 1000:
+            return output_path
+
+        if output_path.exists():
+            try:
+                output_path.unlink()
+            except Exception:
+                pass
+
+        if _try_edge_tts(narration_text, output_path):
             return output_path
 
         if _try_gtts(narration_text, output_path):
-            return output_path
-
-        if _try_edge_tts(narration_text, output_path):
             return output_path
 
         fallback_path = project.audio_dir / f"scene_{scene_number:02d}.txt"
