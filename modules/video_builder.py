@@ -122,8 +122,6 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
 
     text_file = project.audio_dir / "narration.txt"
     narration_text = " ".join(scene.get("narration", "") for scene in scenes)
-    text_file.write_text(narration_text, encoding="utf-8")
-
     # Prefer per-scene MP3s produced by `generate_narration_audio` when available.
     scene_mp3s = sorted(project.audio_dir.glob("scene_*.mp3"))
     if scene_mp3s:
@@ -135,12 +133,12 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
             if not raw_audio.exists():
                 continue
             
-            target_dur = float(scene.get("duration_seconds", 10))
-            if target_dur <= 0:
-                target_dur = 10.0
-            padded_audio = project.audio_dir / f"scene_{scene_number:02d}_sync.mp3"
+            spoken_dur = _audio_duration(raw_audio)
+            req_dur = float(scene.get("duration_seconds", 10.0) or 10.0)
+            target_dur = max(req_dur, spoken_dur + 0.3)
+            scene["duration_seconds"] = target_dur
             
-            # apad ensures silent padding to target duration WITHOUT chopping off any spoken words (no atrim)
+            padded_audio = project.audio_dir / f"scene_{scene_number:02d}_sync.mp3"
             pad_cmd = [
                 "ffmpeg", "-y",
                 "-i", str(raw_audio),
@@ -176,7 +174,6 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
         try:
             subprocess.run(ffmpeg_concat_cmd, check=True, capture_output=True, text=True)
         except Exception:
-            # fallback: re-encode all files into a single mp3
             ffmpeg_reencode = ["ffmpeg", "-y"]
             for p in (padded_mp3s if padded_mp3s else scene_mp3s):
                 ffmpeg_reencode += ["-i", str(p)]
@@ -233,7 +230,7 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
     if total_target_duration <= 0:
         total_target_duration = 60.0
 
-    # Pristine 1080p Full HD Encoding (CRF 18, High Profile, 8M Bitrate)
+    # Universal HTML5 H.264 Full HD Encoding (1080p 24fps, CRF 18, High Profile 4.2)
     cmd = [
         "ffmpeg",
         "-y",
@@ -248,8 +245,8 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
         "-map", "1:a:0",
         "-c:v", "libx264",
         "-preset", "fast",
-        "-crf", "17",
-        "-b:v", "12M",
+        "-crf", "18",
+        "-b:v", "10M",
         "-pix_fmt", "yuv420p",
         "-profile:v", "high",
         "-level", "4.2",
@@ -288,89 +285,95 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
             src_img = src_img.convert("RGBA")
             img_ratio = src_img.width / src_img.height
             target_ratio = 1080 / 1920
+            
+            # Upscale source image to 4K Master Canvas (2160x3840) for downsample anti-aliasing (never upscaling crops)
             if img_ratio > target_ratio:
-                base_h = 2275
-                base_w = int(2275 * img_ratio)
+                base_h = 3840
+                base_w = int(3840 * img_ratio)
             else:
-                base_w = 1280
-                base_h = int(1280 / img_ratio)
+                base_w = 2160
+                base_h = int(2160 / img_ratio)
             
             src_scaled = src_img.resize((base_w, base_h), Image.Resampling.LANCZOS)
             orig_w, orig_h = src_scaled.size
 
-            # Pre-render scene gradient overlay and text drop-shadow ONCE per scene
+            # Pre-render subtle ambient dark gradient for bottom text readability
             scene_overlay = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
             overlay_draw = ImageDraw.Draw(scene_overlay)
-            for y in range(1250, 1920):
-                alpha = int(230 * ((y - 1250) / 670))
+            for y in range(1350, 1920):
+                alpha = int(180 * ((y - 1350) / 570))
                 overlay_draw.line([(0, y), (1080, y)], fill=(0, 0, 0, alpha))
 
-            # Big, Bold 68px High-Impact Subtitles for Shorts/Reels/TikTok
-            font_size = 68
+            # Sleek, Elegant 40px Proportional Captions with Semi-Transparent Dark Glass Pill Box
+            font_size = 40
             font = _load_bold_font(font_size)
 
             caption_text = scene.get("narration", "")
-            wrapped_lines = textwrap.wrap(caption_text, width=22)
+            wrapped_lines = textwrap.wrap(caption_text, width=42)
             wrapped_text = "\n".join(wrapped_lines)
             
-            bbox = overlay_draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=10)
+            bbox = overlay_draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=8)
             text_w = bbox[2] - bbox[0]
             text_h = bbox[3] - bbox[1]
 
             tx = (1080 - text_w) // 2
-            ty = 1600 - (text_h // 2)
+            ty = 1640 - (text_h // 2)
 
-            # Heavy black drop-shadow + Bold white/yellow subtitle text
-            overlay_draw.multiline_text((tx + 3, ty + 3), wrapped_text, fill=(0, 0, 0, 255), font=font, align="center", spacing=10)
-            overlay_draw.multiline_text((tx - 3, ty - 3), wrapped_text, fill=(0, 0, 0, 255), font=font, align="center", spacing=10)
-            overlay_draw.multiline_text((tx, ty), wrapped_text, fill=(255, 255, 255, 255), font=font, align="center", spacing=10)
+            # Draw rounded glass pill container background around captions
+            pad_x, pad_y = 24, 14
+            box_rect = [tx - pad_x, ty - pad_y, tx + text_w + pad_x, ty + text_h + pad_y]
+            overlay_draw.rounded_rectangle(box_rect, radius=16, fill=(10, 15, 26, 175), outline=(255, 255, 255, 35), width=1)
 
-            # Pre-render 24 high-resolution keyframes per scene for 10-second ultra-fast video rendering
-            num_keyframes = min(24, scene_frames)
+            # Crisp white subtitle text with clean 1px drop shadow
+            overlay_draw.multiline_text((tx + 1, ty + 1), wrapped_text, fill=(0, 0, 0, 220), font=font, align="center", spacing=8)
+            overlay_draw.multiline_text((tx, ty), wrapped_text, fill=(255, 255, 255, 255), font=font, align="center", spacing=8)
+
+            # Render 72 high-density keyframes per scene with Lanczos downsampling for razor-sharp HD detail
+            num_keyframes = min(72, scene_frames)
             keyframe_bytes_list = []
 
             for k in range(num_keyframes):
                 k_prog = k / max(1, num_keyframes - 1)
-                # Smooth sine easing for fluid motion
                 import math
                 smooth_prog = (1.0 - math.cos(k_prog * math.pi)) / 2.0
 
                 target_w, target_h = 1080, 1920
+                # Gentle 6% cinematic drift motion so crop region is always > 1080x1920 (sharp downsampling)
                 if motion_type == "zoom_in":
-                    scale = 1.0 + 0.16 * smooth_prog
-                    crop_w = int(target_w / scale)
-                    crop_h = int(target_h / scale)
+                    scale = 1.0 + 0.08 * smooth_prog
+                    crop_w = int(orig_w / scale)
+                    crop_h = int(orig_h / scale)
                     cx, cy = orig_w // 2, orig_h // 2
                 elif motion_type == "zoom_out":
-                    scale = 1.16 - 0.16 * smooth_prog
-                    crop_w = int(target_w / scale)
-                    crop_h = int(target_h / scale)
+                    scale = 1.08 - 0.08 * smooth_prog
+                    crop_w = int(orig_w / scale)
+                    crop_h = int(orig_h / scale)
                     cx, cy = orig_w // 2, orig_h // 2
                 elif motion_type == "pan_right":
-                    scale = 1.12
-                    crop_w = int(target_w / scale)
-                    crop_h = int(target_h / scale)
+                    scale = 1.06
+                    crop_w = int(orig_w / scale)
+                    crop_h = int(orig_h / scale)
                     max_shift = orig_w - crop_w
                     cx = (crop_w // 2) + int(max_shift * smooth_prog)
                     cy = orig_h // 2
                 elif motion_type == "pan_left":
-                    scale = 1.12
-                    crop_w = int(target_w / scale)
-                    crop_h = int(target_h / scale)
+                    scale = 1.06
+                    crop_w = int(orig_w / scale)
+                    crop_h = int(orig_h / scale)
                     max_shift = orig_w - crop_w
                     cx = (orig_w - crop_w // 2) - int(max_shift * smooth_prog)
                     cy = orig_h // 2
                 elif motion_type == "pan_up":
-                    scale = 1.12
-                    crop_w = int(target_w / scale)
-                    crop_h = int(target_h / scale)
+                    scale = 1.06
+                    crop_w = int(orig_w / scale)
+                    crop_h = int(orig_h / scale)
                     max_shift = orig_h - crop_h
                     cx = orig_w // 2
                     cy = (orig_h - crop_h // 2) - int(max_shift * smooth_prog)
                 else:  # pulse_zoom
-                    scale = 1.0 + 0.10 * math.sin(smooth_prog * math.pi)
-                    crop_w = int(target_w / scale)
-                    crop_h = int(target_h / scale)
+                    scale = 1.0 + 0.05 * math.sin(smooth_prog * math.pi)
+                    crop_w = int(orig_w / scale)
+                    crop_h = int(orig_h / scale)
                     cx, cy = orig_w // 2, orig_h // 2
 
                 left = max(0, min(orig_w - crop_w, cx - crop_w // 2))
@@ -379,7 +382,7 @@ def build_video(project: Any, script_data: dict[str, Any], progress_callback: Op
                 bottom = top + crop_h
 
                 cropped = src_scaled.crop((left, top, right, bottom))
-                canvas = cropped.resize((1080, 1920), Image.Resampling.BILINEAR)
+                canvas = cropped.resize((1080, 1920), Image.Resampling.LANCZOS)
                 canvas = Image.alpha_composite(canvas, scene_overlay).convert("RGB")
                 keyframe_bytes_list.append(canvas.tobytes())
 

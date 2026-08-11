@@ -40,16 +40,30 @@ def _parse_story_form(data: dict[str, Any]) -> dict[str, Any]:
     if not idea:
         raise ValueError("Story idea is required.")
 
-    duration = int(str(data.get("duration", "30") or "30").strip() or "30")
+    duration = int(str(data.get("duration", "60") or "60").strip() or "60")
     if duration <= 0:
         raise ValueError("Duration must be greater than zero.")
 
+    # Combine granular character specifications
+    char_desc = (data.get("character_description") or "").strip()
+    char_features = (data.get("character_features") or "").strip()
+    char_outfit = (data.get("character_outfit") or "").strip()
+    combined_char = ", ".join(filter(None, [char_desc, char_features, char_outfit])) or None
+
+    # Combine granular environment specifications
+    env_details = (data.get("environment_details") or "").strip()
+    lighting_atm = (data.get("lighting_atmosphere") or "").strip()
+    if env_details or lighting_atm:
+        combined_idea = f"{idea} ({', '.join(filter(None, [env_details, lighting_atm]))})"
+    else:
+        combined_idea = idea
+
     return {
-        "idea": idea,
+        "idea": combined_idea,
         "story_type": str(data.get("story_type", "emotional") or "emotional").strip(),
         "visual_style": str(data.get("visual_style", "cinematic photoreal fantasy portrait, 3d octane render, 8k") or "cinematic photoreal fantasy portrait, 3d octane render, 8k").strip(),
         "duration_seconds": duration,
-        "character_description": (str(data.get("character_description", "") or "").strip() or None),
+        "character_description": combined_char,
         "title": (str(data.get("title", "") or "").strip() or None),
     }
 

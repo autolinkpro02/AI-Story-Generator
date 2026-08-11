@@ -93,6 +93,20 @@
         .main-grid { grid-template-columns: 1fr; }
       }
 
+      @media (max-width: 640px) {
+        body { padding: 16px 12px; }
+        header { margin-bottom: 24px; }
+        header h1 { font-size: 1.85rem; flex-direction: column; gap: 4px; }
+        header p { font-size: 0.92rem; }
+        .card { padding: 18px 14px; border-radius: 18px; }
+        .card-title { font-size: 1.25rem; margin-bottom: 16px; }
+        .style-presets { grid-template-columns: 1fr 1fr; gap: 8px; }
+        .style-card { padding: 10px 8px; }
+        .preview-box { min-height: 360px; padding: 14px 10px; }
+        .video-wrapper { max-width: 100%; width: 100%; }
+        .actions { max-width: 100%; width: 100%; }
+      }
+
       .card {
         background: var(--card-bg);
         backdrop-filter: blur(20px);
@@ -448,9 +462,45 @@
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="character_description">Character & Environment Consistency Lock</label>
-              <textarea id="character_description" name="character_description" rows="2" placeholder="e.g. A graceful forest elf with braided brown hair, green leaf tunic, leaf crown, pointed elf ears"></textarea>
+            <!-- Hero Character Specification Breakdown -->
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 18px; margin-bottom: 22px;">
+              <div style="font-size: 0.95rem; font-weight: 700; color: #60a5fa; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="user"></i> Hero Character Specifications
+              </div>
+              
+              <div class="form-group">
+                <label for="character_description">Character Name / Role</label>
+                <input id="character_description" name="character_description" placeholder="e.g. Forest Elf Guardian" value="Forest Elf Guardian" />
+              </div>
+
+              <div class="row-2">
+                <div class="form-group">
+                  <label for="character_features">Facial & Physical Features</label>
+                  <input id="character_features" name="character_features" placeholder="e.g. Amber-gold eyes, luminous skin, braided hair" value="Amber-gold eyes, luminous skin, braided chestnut hair" />
+                </div>
+                <div class="form-group">
+                  <label for="character_outfit">Clothing, Armor & Gear</label>
+                  <input id="character_outfit" name="character_outfit" placeholder="e.g. Emerald leather pauldrons, silver armguards" value="Emerald leather pauldrons, silver armguards, velvet cloak" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Environment & Atmosphere Breakdown -->
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 18px; margin-bottom: 22px;">
+              <div style="font-size: 0.95rem; font-weight: 700; color: #34d399; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="trees"></i> Environment & Atmosphere
+              </div>
+
+              <div class="row-2">
+                <div class="form-group">
+                  <label for="environment_details">Location & Flora Details</label>
+                  <input id="environment_details" name="environment_details" placeholder="e.g. Ancient woods, glowing mushrooms, mossy stone ruins" value="Bioluminescent ancient woods, mossy stone ruins, glowing mushrooms" />
+                </div>
+                <div class="form-group">
+                  <label for="lighting_atmosphere">Lighting, Weather & Time</label>
+                  <input id="lighting_atmosphere" name="lighting_atmosphere" placeholder="e.g. Moonlit purple night glow, volumetric fog" value="Ethereal purple midnight moonlit glow, floating pollen dust" />
+                </div>
+              </div>
             </div>
 
             <button type="submit" id="submit-btn" class="btn-generate">

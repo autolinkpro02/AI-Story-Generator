@@ -113,50 +113,64 @@ def _generate_fallback_script(request: ScriptRequest) -> ScriptResult:
     idea_words = clean_idea.split()
     topic = " ".join(idea_words[:4]) if idea_words else clean_idea[:30]
 
-    # Extract subject and environment setting dynamically
-    idea_words = clean_idea.split()
-    subject = (request.character_description or clean_idea).strip()
-    if len(subject) > 55:
-        subject = subject[:55].rsplit(" ", 1)[0]
+    # Clean any prompt labels (e.g. "Facial Features", "Character Description") from image subject
+    raw_subject = (request.character_description or clean_idea).strip()
+    clean_subject = re.sub(r'(?i)\b(facial features|character description|body & outfit|features|character)\b[:\s]*', '', raw_subject).strip()
+    if len(clean_subject) > 55:
+        clean_subject = clean_subject[:55].rsplit(" ", 1)[0]
+    if not clean_subject:
+        clean_subject = "hero character"
 
     env = f"in {clean_idea[:40]}" if len(clean_idea) > 10 else "in an enchanted realm"
+    # Extract hero name / role for story narration
+    raw_char = (request.character_description or "").strip()
+    clean_hero = re.sub(r'(?i)\b(facial features|character description|body & outfit|features|character)\b[:\s]*', '', raw_char).strip()
+    if clean_hero:
+        hero_name = clean_hero.split(",")[0].strip()
+        if len(hero_name) > 35:
+            hero_name = hero_name[:35].rsplit(" ", 1)[0]
     style = request.visual_style or "cinematic artwork, 8k render"
+    narration_idea = re.sub(r'\s*\([^)]*\)', '', clean_idea).strip()
+    if narration_idea.lower().startswith("a "):
+        narration_idea = narration_idea[2:].strip()
+    elif narration_idea.lower().startswith("an "):
+        narration_idea = narration_idea[3:].strip()
 
     scenes = [
         {
             "scene_number": 1,
-            "narration": f"In a world of magic and wonder, {clean_idea}. A extraordinary adventure began under glowing skies.",
-            "image_prompt": f"masterpiece artwork of {subject}, starting an epic quest {env}, {style}, vibrant opening light",
+            "narration": f"In a world of magic and wonder, {hero_name} set out on a grand quest: {narration_idea}. An extraordinary journey began under glowing skies.",
+            "image_prompt": f"masterpiece artwork of {clean_subject}, starting an epic quest {env}, {style}, vibrant opening light",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 2,
-            "narration": f"Guided by destiny, {subject[:30]} ventured deeper, discovering a glowing magical secret that sparked new hope.",
-            "image_prompt": f"masterpiece artwork of {subject}, discovering a glowing magical relic {env}, {style}, luminescent rays",
+            "narration": f"Guided by destiny, {hero_name} ventured deeper into the enchanted realm, discovering a glowing magical secret that sparked new hope.",
+            "image_prompt": f"masterpiece artwork of {clean_subject}, discovering a glowing magical relic {env}, {style}, luminescent rays",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 3,
-            "narration": f"Suddenly, a formidable trial blocked the path. Swirling mists and dramatic shadows tested true bravery.",
-            "image_prompt": f"masterpiece artwork of {subject}, braving a dramatic stormy obstacle {env}, {style}, epic scale",
+            "narration": f"Suddenly, a formidable trial blocked the path. Swirling mists and dramatic shadows tested {hero_name}'s true bravery.",
+            "image_prompt": f"masterpiece artwork of {clean_subject}, braving a dramatic stormy obstacle {env}, {style}, epic scale",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 4,
-            "narration": f"Calling upon inner strength, brilliant light shattered the dark mist, revealing a hidden path forward.",
-            "image_prompt": f"masterpiece artwork of {subject}, surrounded by golden celestial light {env}, {style}, soft bokeh",
+            "narration": f"Calling upon inner strength, brilliant light shattered the dark mist, revealing a hidden path forward for {hero_name}.",
+            "image_prompt": f"masterpiece artwork of {clean_subject}, surrounded by golden celestial light {env}, {style}, soft bokeh",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 5,
-            "narration": f"With a triumphant surge of courage, victory was achieved. Vibrant colors bloomed in joyful celebration.",
-            "image_prompt": f"masterpiece artwork of {subject}, holding a lantern celebrating victory {env}, {style}, vibrant colors",
+            "narration": f"With a triumphant surge of courage, {hero_name} achieved victory, as vibrant colors bloomed across the land in joyful celebration.",
+            "image_prompt": f"masterpiece artwork of {clean_subject}, holding a lantern celebrating victory {env}, {style}, vibrant colors",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 6,
-            "narration": f"And as golden twilight painted the horizon, peace settled over the land, leaving a timeless legend forever.",
-            "image_prompt": f"masterpiece artwork of {subject}, gazing out at a majestic golden sunset over {env}, {style}, beautiful horizon",
+            "narration": f"As golden twilight painted the horizon, peace settled over the land, leaving {hero_name}'s journey as a timeless legend forever.",
+            "image_prompt": f"masterpiece artwork of {clean_subject}, gazing out at a majestic golden sunset over {env}, {style}, beautiful horizon",
             "duration_seconds": per_scene_dur
         }
     ]

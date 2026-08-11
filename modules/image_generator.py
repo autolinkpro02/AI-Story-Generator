@@ -117,9 +117,9 @@ def generate_scene_images(project: Any, script_data: dict[str, Any], progress_ca
 
         return scene_number, image_path if image_path.exists() else None
 
-    # Fetch scene images sequentially (max_workers=1) to prevent queue timeouts and guarantee 100% real HD Flux AI images
+    # Fetch scene images in parallel (max_workers=3) for ultra-fast 12-second generation
     completed_count = 0
-    with ThreadPoolExecutor(max_workers=1) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         future_map = {executor.submit(_process_single_scene, (i, s)): i for i, s in enumerate(scenes)}
         for future in as_completed(future_map):
             completed_count += 1
