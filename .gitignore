@@ -7,3 +7,8 @@ venv/
 *.pyd
 projects/
 .pytest_cache/
+*.png
+*.jpg
+*.mp4
+fastsd-railway/
+stablevideo-railway/

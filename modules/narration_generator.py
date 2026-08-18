@@ -2,11 +2,30 @@
 
 from __future__ import annotations
 
-import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
 import requests
+
+
+def _is_valid_audio(path: Path) -> bool:
+    """Confirm a file is a real, decodable audio file, not just non-empty.
+    TTS calls (especially edge-tts over the network) can 'succeed' with no
+    exception thrown while still writing a truncated/corrupt file - that
+    corrupt file then crashes ffmpeg much later, far from the real cause."""
+    if not path.exists() or path.stat().st_size < 1000:
+        return False
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+            capture_output=True, text=True, timeout=15,
+        )
+        duration = float(result.stdout.strip() or 0)
+        return duration > 0
+    except Exception:
+        return False
 
 
 def _try_gtts(text: str, output_path: Path) -> bool:
@@ -18,7 +37,7 @@ def _try_gtts(text: str, output_path: Path) -> bool:
     try:
         audio = gTTS(text=text, lang="en")
         audio.save(output_path)
-        return True
+        return _is_valid_audio(output_path)
     except Exception:
         return False
 
@@ -37,7 +56,7 @@ def _try_edge_tts(text: str, output_path: Path) -> bool:
             await communicate.save(output_path)
 
         asyncio.run(_render())
-        return True
+        return _is_valid_audio(output_path)
     except Exception:
         return False
 
@@ -58,7 +77,7 @@ def generate_narration_audio(project: Any, script_data: dict[str, Any], overwrit
         narration_text = scene.get("narration", "")
         output_path = project.audio_dir / f"scene_{scene_number:02d}.mp3"
 
-        if not overwrite and output_path.exists() and output_path.stat().st_size > 1000:
+        if not overwrite and _is_valid_audio(output_path):
             return output_path
 
         if output_path.exists():
@@ -73,6 +92,7 @@ def generate_narration_audio(project: Any, script_data: dict[str, Any], overwrit
         if _try_gtts(narration_text, output_path):
             return output_path
 
+        print(f"WARNING: Scene {scene_number} - both TTS engines failed or produced invalid audio, using silent fallback")
         fallback_path = project.audio_dir / f"scene_{scene_number:02d}.txt"
         fallback_path.write_text(narration_text)
         return fallback_path

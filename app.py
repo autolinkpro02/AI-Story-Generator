@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from script_generator import ScriptRequest, generate_script
+from modules.script_generator import ScriptRequest, generate_script
 from modules.project_manager import Project
 from modules.image_generator import generate_scene_images
 from modules.narration_generator import generate_narration_audio

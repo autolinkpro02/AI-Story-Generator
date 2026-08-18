@@ -396,16 +396,16 @@
           <form id="story-form">
             <div class="form-group">
               <label for="idea">Story Idea</label>
-              <textarea id="idea" name="idea" rows="3" placeholder="e.g. A forest elf exploring an enchanted moonlit woods looking for glowing celestial crystals..." required>A forest elf exploring an enchanted moonlit woods looking for glowing celestial crystals</textarea>
+              <textarea id="idea" name="idea" rows="3" placeholder="e.g. A realistic urban photographer exploring a rainy city skyline looking for a hidden historic library..." required>A realistic urban photographer exploring a rainy city skyline looking for a hidden historic library</textarea>
             </div>
 
             <div class="row-2">
               <div class="form-group">
                 <label for="story_type">Category</label>
                 <select id="story_type" name="story_type">
-                  <option value="emotional">Emotional</option>
-                  <option value="motivational">Motivational</option>
-                  <option value="mystery" selected>Mystery / Fantasy</option>
+                  <option value="emotional">Emotional / Life Story</option>
+                  <option value="motivational" selected>Motivational / Career</option>
+                  <option value="mystery">Mystery / Exploration</option>
                   <option value="moral">Moral Story</option>
                 </select>
               </div>
@@ -425,38 +425,38 @@
 
             <div class="form-group">
               <label for="visual_style">Visual Style Preset</label>
-              <input id="visual_style" name="visual_style" value="cinematic photoreal fantasy portrait, 3d octane render, detailed forest elf" required />
+              <input id="visual_style" name="visual_style" value="Award-winning 35mm photo portrait of a realistic person, sharp focus, 8k resolution, authentic skin texture, cinematic lighting" required />
               
               <div class="style-presets-grid">
-                <div class="style-card active" onclick="setStyle('cinematic photoreal fantasy portrait, 3d octane render, detailed forest elf', this)">
+                <div class="style-card active" onclick="setStyle('Award-winning 35mm photo portrait of a realistic person, sharp focus, 8k resolution, authentic skin texture, cinematic lighting', this)">
                   <div class="style-card-icon"><i data-lucide="camera"></i></div>
                   <div class="style-card-info">
-                    <h4>Photoreal Fantasy</h4>
-                    <p>8K Octane Render & Bokeh</p>
+                    <h4>Photorealistic Human</h4>
+                    <p>8K 35mm Real Person Portrait</p>
                   </div>
                 </div>
 
-                <div class="style-card" onclick="setStyle('3D Pixar style living animated characters, vibrant OctaneRender 8k', this)">
+                <div class="style-card" onclick="setStyle('Realistic cinematic 35mm film portrait of a real person, natural lighting, shallow depth of field, sharp detail', this)">
                   <div class="style-card-icon"><i data-lucide="film"></i></div>
                   <div class="style-card-info">
-                    <h4>3D Pixar Animation</h4>
-                    <p>Vivid Animated Characters</p>
+                    <h4>Cinematic Realism</h4>
+                    <p>Natural Film Portrait</p>
                   </div>
                 </div>
 
-                <div class="style-card" onclick="setStyle('dark fantasy cinematic aesthetic, ethereal purple night lighting', this)">
-                  <div class="style-card-icon"><i data-lucide="moon"></i></div>
+                <div class="style-card" onclick="setStyle('Realistic urban street photography of a real person, candid portrait, natural daylight, 8k', this)">
+                  <div class="style-card-icon"><i data-lucide="sun"></i></div>
                   <div class="style-card-info">
-                    <h4>Dark Fantasy</h4>
-                    <p>Ethereal Mystic Aesthetics</p>
+                    <h4>Urban Street Style</h4>
+                    <p>Natural City Lighting</p>
                   </div>
                 </div>
 
-                <div class="style-card" onclick="setStyle('vibrant studio ghibli anime style illustration, rich detailed scenery', this)">
+                <div class="style-card" onclick="setStyle('National geographic style portrait photography of a realistic person, authentic features, 8k', this)">
                   <div class="style-card-icon"><i data-lucide="palette"></i></div>
                   <div class="style-card-info">
-                    <h4>Studio Ghibli Anime</h4>
-                    <p>Vibrant Anime Artistry</p>
+                    <h4>Documentary Realism</h4>
+                    <p>Authentic Human Features</p>
                   </div>
                 </div>
               </div>
@@ -470,17 +470,17 @@
               
               <div class="form-group">
                 <label for="character_description">Character Name / Role</label>
-                <input id="character_description" name="character_description" placeholder="e.g. Forest Elf Guardian" value="Forest Elf Guardian" />
+                <input id="character_description" name="character_description" placeholder="e.g. Alex the Urban Explorer" value="Alex the Urban Explorer" />
               </div>
 
               <div class="row-2">
                 <div class="form-group">
                   <label for="character_features">Facial & Physical Features</label>
-                  <input id="character_features" name="character_features" placeholder="e.g. Amber-gold eyes, luminous skin, braided hair" value="Amber-gold eyes, luminous skin, braided chestnut hair" />
+                  <input id="character_features" name="character_features" placeholder="e.g. Expressive brown eyes, natural skin texture, dark wavy hair" value="Expressive brown eyes, natural skin texture, dark wavy hair" />
                 </div>
                 <div class="form-group">
                   <label for="character_outfit">Clothing, Armor & Gear</label>
-                  <input id="character_outfit" name="character_outfit" placeholder="e.g. Emerald leather pauldrons, silver armguards" value="Emerald leather pauldrons, silver armguards, velvet cloak" />
+                  <input id="character_outfit" name="character_outfit" placeholder="e.g. Stylish dark jacket, wool scarf, vintage leather bag" value="Stylish dark jacket, wool scarf, vintage leather camera bag" />
                 </div>
               </div>
             </div>
@@ -494,11 +494,11 @@
               <div class="row-2">
                 <div class="form-group">
                   <label for="environment_details">Location & Flora Details</label>
-                  <input id="environment_details" name="environment_details" placeholder="e.g. Ancient woods, glowing mushrooms, mossy stone ruins" value="Bioluminescent ancient woods, mossy stone ruins, glowing mushrooms" />
+                  <input id="environment_details" name="environment_details" placeholder="e.g. Rainy city streets, historic brick architecture" value="Rainy city streets, historic brick architecture, glowing window reflections" />
                 </div>
                 <div class="form-group">
                   <label for="lighting_atmosphere">Lighting, Weather & Time</label>
-                  <input id="lighting_atmosphere" name="lighting_atmosphere" placeholder="e.g. Moonlit purple night glow, volumetric fog" value="Ethereal purple midnight moonlit glow, floating pollen dust" />
+                  <input id="lighting_atmosphere" name="lighting_atmosphere" placeholder="e.g. Warm sunset golden hour, soft ambient rain" value="Warm sunset golden hour, soft rain reflections" />
                 </div>
               </div>
             </div>

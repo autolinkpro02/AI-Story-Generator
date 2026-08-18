@@ -2,7 +2,8 @@
 modules/script_generator.py
 
 Turns a story idea into a structured script + scene breakdown using a local
-Ollama model. Everything talks to localhost:11434 -- no cloud APIs involved.
+Ollama model. Everything talks to localhost:11434 (or OLLAMA_URL) -- no cloud
+APIs involved.
 
 Requires: `ollama serve` running, and the model pulled once via
     ollama pull llama3.2:3b
@@ -21,6 +22,13 @@ sys.path.append(str(Path(__file__).parent.parent))
 from config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT_SECONDS
 
 MAX_RETRIES = 1
+
+# The old code hardcoded timeout=6, ignoring config.OLLAMA_TIMEOUT_SECONDS entirely.
+# 6 seconds is not enough for a real generation call to a remote model, so every
+# run was silently timing out and falling back to the generic template script.
+# Capped here (instead of using the full 600s from config) so a bad/slow endpoint
+# still fails fast enough to keep the overall pipeline quick.
+REQUEST_TIMEOUT_SECONDS = min(OLLAMA_TIMEOUT_SECONDS, 25)
 
 SYSTEM_PROMPT = (
     "You are a master scriptwriter for short vertical story videos (Instagram Reels / "
@@ -104,83 +112,80 @@ def _validate(data: dict) -> list:
 
 
 def _generate_fallback_script(request: ScriptRequest) -> ScriptResult:
+    """Used only when Ollama is unreachable/too slow/returns bad JSON.
+    IMPORTANT: this must still describe the user's actual idea/character -
+    the old version hardcoded a generic human photo here regardless of the
+    idea, which is why a "fox learns to fly" story rendered as a random man."""
     clean_idea = request.idea.strip()
-    char_desc = request.character_description or f"the main hero of {clean_idea[:40]}"
+    char_desc = request.character_description or f"the main character from: {clean_idea}"
     title = f"The Legend of {clean_idea[:30].title()}"
     per_scene_dur = max(3, request.duration_seconds // 6)
-    
-    # Environment and topic extraction
-    idea_words = clean_idea.split()
-    topic = " ".join(idea_words[:4]) if idea_words else clean_idea[:30]
 
-    # Clean any prompt labels (e.g. "Facial Features", "Character Description") from image subject
-    raw_subject = (request.character_description or clean_idea).strip()
-    clean_subject = re.sub(r'(?i)\b(facial features|character description|body & outfit|features|character)\b[:\s]*', '', raw_subject).strip()
-    if len(clean_subject) > 55:
-        clean_subject = clean_subject[:55].rsplit(" ", 1)[0]
-    if not clean_subject:
-        clean_subject = "hero character"
-
-    env = f"in {clean_idea[:40]}" if len(clean_idea) > 10 else "in an enchanted realm"
-    # Extract hero name / role for story narration
-    raw_char = (request.character_description or "").strip()
-    clean_hero = re.sub(r'(?i)\b(facial features|character description|body & outfit|features|character)\b[:\s]*', '', raw_char).strip()
-    if clean_hero:
-        hero_name = clean_hero.split(",")[0].strip()
-        if len(hero_name) > 35:
-            hero_name = hero_name[:35].rsplit(" ", 1)[0]
-    style = request.visual_style or "cinematic artwork, 8k render"
     narration_idea = re.sub(r'\s*\([^)]*\)', '', clean_idea).strip()
     if narration_idea.lower().startswith("a "):
         narration_idea = narration_idea[2:].strip()
     elif narration_idea.lower().startswith("an "):
         narration_idea = narration_idea[3:].strip()
 
+    # hero_name is just for narration text readability - "the fox", "our hero", etc.
+    # Only use a real name if the user actually gave one via --character.
+    raw_char = (request.character_description or "").strip()
+    hero_name = "our hero"
+    if raw_char:
+        name_match = re.search(r'\b([A-Z][a-z]+)\b', raw_char)
+        if name_match and name_match.group(1).lower() not in ["handsome", "male", "female", "photographer", "explorer", "young"]:
+            hero_name = name_match.group(1)
+
+    # hero_anchor drives the image_prompt - this MUST reflect the actual idea/character,
+    # not a fixed stock description, or every scene renders as an unrelated generic photo.
+    hero_anchor = request.character_description.strip() if request.character_description else narration_idea
+    style_hint = request.visual_style or "cinematic illustration"
+
     scenes = [
         {
             "scene_number": 1,
-            "narration": f"In a world of magic and wonder, {hero_name} set out on a grand quest: {narration_idea}. An extraordinary journey began under glowing skies.",
-            "image_prompt": f"masterpiece artwork of {clean_subject}, starting an epic quest {env}, {style}, vibrant opening light",
+            "narration": f"Every great journey begins with a single step. {hero_name} set out on an inspiring path: {narration_idea}.",
+            "image_prompt": f"{hero_anchor}, {style_hint}, walking down a sunlit avenue with atmospheric background, sharp focus, deep depth of field, highly detailed, consistent character design",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 2,
-            "narration": f"Guided by destiny, {hero_name} ventured deeper into the enchanted realm, discovering a glowing magical secret that sparked new hope.",
-            "image_prompt": f"masterpiece artwork of {clean_subject}, discovering a glowing magical relic {env}, {style}, luminescent rays",
+            "narration": f"Guided by curiosity and passion, {hero_name} ventured deeper, discovering a fascinating secret that opened up new possibilities.",
+            "image_prompt": f"{hero_anchor}, {style_hint}, exploring an intricate detailed environment full of curious objects, sharp focus, deep depth of field, highly detailed, consistent character design",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 3,
-            "narration": f"Suddenly, a formidable trial blocked the path. Swirling mists and dramatic shadows tested {hero_name}'s true bravery.",
-            "image_prompt": f"masterpiece artwork of {clean_subject}, braving a dramatic stormy obstacle {env}, {style}, epic scale",
+            "narration": f"Suddenly, an unexpected challenge arose. Determination and quick thinking tested {hero_name}'s true resolve.",
+            "image_prompt": f"{hero_anchor}, {style_hint}, facing a dramatic obstacle, tense dynamic pose, sharp focus, deep depth of field, highly detailed, consistent character design",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 4,
-            "narration": f"Calling upon inner strength, brilliant light shattered the dark mist, revealing a hidden path forward for {hero_name}.",
-            "image_prompt": f"masterpiece artwork of {clean_subject}, surrounded by golden celestial light {env}, {style}, soft bokeh",
+            "narration": f"Drawing upon inner strength and focus, a clear path forward revealed itself for {hero_name}.",
+            "image_prompt": f"{hero_anchor}, {style_hint}, a moment of quiet focus and realization, soft directional lighting, sharp focus, deep depth of field, highly detailed, consistent character design",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 5,
-            "narration": f"With a triumphant surge of courage, {hero_name} achieved victory, as vibrant colors bloomed across the land in joyful celebration.",
-            "image_prompt": f"masterpiece artwork of {clean_subject}, holding a lantern celebrating victory {env}, {style}, vibrant colors",
+            "narration": f"With a moment of breakthrough and pride, {hero_name} achieved a meaningful victory.",
+            "image_prompt": f"{hero_anchor}, {style_hint}, a triumphant victorious moment, dramatic lighting, sharp focus, deep depth of field, highly detailed, consistent character design",
             "duration_seconds": per_scene_dur
         },
         {
             "scene_number": 6,
-            "narration": f"As golden twilight painted the horizon, peace settled over the land, leaving {hero_name}'s journey as a timeless legend forever.",
-            "image_prompt": f"masterpiece artwork of {clean_subject}, gazing out at a majestic golden sunset over {env}, {style}, beautiful horizon",
+            "narration": f"As warm evening light settled across the horizon, peace returned, leaving {hero_name}'s journey as an unforgettable story.",
+            "image_prompt": f"{hero_anchor}, {style_hint}, standing peacefully against a warm sunset sky, sharp focus, deep depth of field, highly detailed, consistent character design",
             "duration_seconds": per_scene_dur
         }
     ]
 
     return ScriptResult(raw={
         "title": title,
-        "hook": f"Discover the epic tale of {topic}",
+        "hook": f"Discover the story of {narration_idea}",
         "character_description": char_desc,
         "scenes": scenes,
-        "closing_line": f"The story of {topic} lives on forever."
+        "closing_line": f"The story of {narration_idea} lives on forever."
     })
 
 
@@ -212,7 +217,7 @@ Target duration: {request.duration_seconds} seconds
                 full_prompt = f"{SYSTEM_PROMPT}\n\n{user_prompt}"
                 if attempt > 1 and len(messages) > 2:
                     full_prompt += f"\n\nNote: Previous attempt had formatting issues: {messages[-1]['content']}. Output pure valid JSON."
-                
+
                 payload = {
                     "model": request.model,
                     "prompt": full_prompt,
@@ -230,7 +235,7 @@ Target duration: {request.duration_seconds} seconds
             resp = requests.post(
                 OLLAMA_URL,
                 json=payload,
-                timeout=6,  # 6 second timeout for instant response
+                timeout=REQUEST_TIMEOUT_SECONDS,
             )
             resp.raise_for_status()
             res_json = resp.json()
